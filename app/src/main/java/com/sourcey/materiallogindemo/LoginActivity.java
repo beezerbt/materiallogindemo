@@ -1,6 +1,7 @@
 package com.sourcey.materiallogindemo;
 
 import android.app.ProgressDialog;
+import android.arch.lifecycle.LiveData;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.StrictMode;
@@ -12,37 +13,68 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.sourcey.materiallogindemo.response.BitBucketGETReposResponse;
 
-import java.io.IOException;
-import java.util.List;
+import java.io.UnsupportedEncodingException;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import retrofit2.Call;
-import retrofit2.Retrofit;
-import retrofit2.converter.jackson.JacksonConverterFactory;
-import retrofit2.http.GET;
-import retrofit2.http.Path;
+import cz.msebera.android.httpclient.Header;
+import cz.msebera.android.httpclient.HttpStatus;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
     private static final int REQUEST_SIGNUP = 0;
+    private BitBucketGETReposResponse bitBucketGETReposResponse = null;
 
-/*
-    @BindView(R.id.input_email) EditText _emailText;
-*/
-    @BindView(R.id.input_login) EditText _loginId;
-    @BindView(R.id.input_password) EditText _passwordText;
-    @BindView(R.id.btn_login) Button _loginButton;
-    @BindView(R.id.link_signup) TextView _signupLink;
-    
+    public String getResult() {
+        return result;
+    }
+
+    public void setResult(String result) {
+        Log.i("setResult", "resultIncoming:["+result+"]");
+        this.result = result;
+    }
+
+    private volatile String result;
+
+    public int getCallStatusCode() {
+        return callStatusCode;
+    }
+
+    public void setCallStatusCode(int callStatusCode) {
+        this.callStatusCode = callStatusCode;
+    }
+
+    private volatile int callStatusCode;
+
+    public LiveData<BitBucketGETReposResponse> getLiveData() {
+        return liveData;
+    }
+
+    public void setLiveData(LiveData<BitBucketGETReposResponse> liveData) {
+        this.liveData = liveData;
+    }
+
+    LiveData<BitBucketGETReposResponse> liveData = null;
+
+    @BindView(R.id.input_login)
+    EditText _loginId;
+    @BindView(R.id.input_password)
+    EditText _passwordText;
+    @BindView(R.id.btn_login)
+    Button _loginButton;
+    @BindView(R.id.link_signup)
+    TextView _signupLink;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
         ButterKnife.bind(this);
-        
+
         _loginButton.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -64,14 +96,10 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    public interface BitBucketService {
-        @GET("/2.0/repositories/{user}")
-        Call<List<BitBucketGETReposResponse>> listRepos(@Path("user") String user);
-    }
-
     public void login() {
-        Log.d(TAG, "Login");
-
+        Log.d(TAG, "============================>>Login()");
+        setBitBucketGETReposResponse(null);
+        //To be able to call the web service
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder()
                 .permitAll().build();
         StrictMode.setThreadPolicy(policy);
@@ -90,34 +118,103 @@ public class LoginActivity extends AppCompatActivity {
         progressDialog.show();
         String password = _passwordText.getText().toString();
         String loginId = _loginId.getText().toString();
-
+        Log.i("Login", ">>>>>>>>>loginId = " + loginId + ">>>>>>>>>password =" + password);
         // ====================== TODO: Implement your own authentication logic here.
-        String baseUrl = "https://" + loginId + ":" + password + "@api.bitbucket.org";
-        Log.i("Login",">>>>>>>>>baseUrl = " + baseUrl);
-        Retrofit retrofit = new Retrofit.Builder()
-                .addConverterFactory(JacksonConverterFactory.create())
-                .baseUrl(baseUrl)
-                .build();
-        //The above simulates us setting username/password
-        //in the header for the call for ENGIE
-        //This works in curl:
-        //https://shahrik:[myPassword]@api.bitbucket.org/2.0/repositories/shahrik
 
-        BitBucketService service = retrofit.create(BitBucketService.class);
-        Call<List<BitBucketGETReposResponse>> repositories = service.listRepos(loginId);
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.get("https://shahrik:Blog7402__@api.bitbucket.org/2.0/repositories/shahrik", new AsyncHttpResponseHandler() {
+
+            @Override
+            public void onStart() {
+                Log.i("AsyncHttpClient", "called before request is started");
+            }
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
+                Log.i("AsyncHttpClient", "called when response HTTP status is 200 OK");
+                String decodedDataUsingUTF8=null;
+                if(statusCode == HttpStatus.SC_OK) {
+                    try {
+                        decodedDataUsingUTF8 = new String(response, "UTF-8");
+                        setResult(decodedDataUsingUTF8);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                        Log.e("onSuccess", "decodedDataUsingUTF8 failure");
+                    }
+                }
+                setCallStatusCode(statusCode);
+                Log.i("onSuccess", "responseL["+decodedDataUsingUTF8+"]");
+
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
+                Log.i("AsyncHttpClient", "called when response HTTP status is \"4XX\" (eg. 401, 403, 404)");
+            }
+
+            @Override
+            public void onRetry(int retryNo) {
+                Log.i("AsyncHttpClient", "called when request is retried");
+            }
+        });
+
+        /*JSONObject jsonParams = new JSONObject();
+        StringEntity entity = null;
         try {
-            repositories.execute();
-        } catch (IOException e) {
+            jsonParams.put("username", "lace.sam@gmail.com");
+            jsonParams.put("password", "8Sapphire7");
+            jsonParams.put("keepMeLogged", true);
+            jsonParams.put("segment", "residential");
+            entity = new StringEntity(jsonParams.toString());
+            Log.i("Login", "Entity Payload:["+entity.toString()+"]");
+        } catch (JSONException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        Log.i("Login",">>>>>>>>>RESPONSE - repositories.isExecuted() = " + repositories.isExecuted());
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.post(null,"https://www.engie-electrabel.be/nl/iam/v3/api/public/login", entity, "application/json", new AsyncHttpResponseHandler() {
+
+            @Override
+            public void onStart() {
+                Log.i("AsyncHttpClient", "called before request is started");
+            }
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
+                Log.i("AsyncHttpClient", "called when response HTTP status is 200 OK");
+                String decodedDataUsingUTF8=null;
+                if(statusCode == HttpStatus.SC_OK) {
+                    try {
+                        decodedDataUsingUTF8 = new String(response, "UTF-8");
+                        setResult(decodedDataUsingUTF8);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                        Log.e("onSuccess", "decodedDataUsingUTF8 failure");
+                    }
+                }
+                setCallStatusCode(statusCode);
+                Log.i("onSuccess", "responseL["+decodedDataUsingUTF8+"]");
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
+                Log.i("AsyncHttpClient", "called when response HTTP status is \"4XX\" (eg. 401, 403, 404)");
+            }
+
+            @Override
+            public void onRetry(int retryNo) {
+                Log.i("AsyncHttpClient", "called when request is retried");
+            }
+        });*/
+
         // ====================== TODO: Implement your own authentication logic here.
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
-                        // On complete call either onLoginSuccess or onLoginFailed
-                        onLoginSuccess();
-                        onLoginFailed();
+                        if(getCallStatusCode() == HttpStatus.SC_OK) {
+                            onLoginSuccess();
+                        } else {
+                            onLoginFailed();
+                        }
                         progressDialog.dismiss();
                     }
                 }, 3000);
@@ -128,7 +225,6 @@ public class LoginActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_SIGNUP) {
             if (resultCode == RESULT_OK) {
-
                 // TODO: Implement successful signup logic here
                 // By default we just finish the Activity and log them in automatically
                 this.finish();
@@ -144,12 +240,37 @@ public class LoginActivity extends AppCompatActivity {
 
     public void onLoginSuccess() {
         _loginButton.setEnabled(true);
-        finish();
+
+        Intent intent = new Intent(this, SuccessfulLoginActivity.class);
+        intent.putExtra("LoginResult", getResult());
+        startActivity(intent);
+
+        /*
+
+        String prettyJSONResult;
+        _loginButton.setEnabled(true);
+        if (getResult() != null) {
+            prettyJSONResult = getResult();
+            Log.i("Response", "----->>Did it have shuffler:[" + prettyJSONResult.contains("shuffler") + "]");
+        } else {
+            prettyJSONResult = "Null";
+        }
+        final Toast tag = Toast.makeText(this, "Login succeeded!!.[" + prettyJSONResult + "]", Toast.LENGTH_LONG);
+        tag.show();
+        new CountDownTimer(9000, 1000) {
+            public void onTick(long millisUntilFinished) {
+                tag.show();
+            }
+
+            public void onFinish() {
+                tag.show();
+            }
+        }.start();*/
+        //finish();
     }
 
     public void onLoginFailed() {
         Toast.makeText(getBaseContext(), "Login failed", Toast.LENGTH_LONG).show();
-
         _loginButton.setEnabled(true);
     }
 
@@ -184,5 +305,13 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         return valid;
+    }
+
+    public BitBucketGETReposResponse getBitBucketGETReposResponse() {
+        return bitBucketGETReposResponse;
+    }
+
+    public void setBitBucketGETReposResponse(BitBucketGETReposResponse bitBucketGETReposResponse) {
+        this.bitBucketGETReposResponse = bitBucketGETReposResponse;
     }
 }
