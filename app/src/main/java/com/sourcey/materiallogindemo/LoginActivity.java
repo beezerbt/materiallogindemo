@@ -15,14 +15,41 @@ import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.MySSLSocketFactory;
+import com.loopj.android.http.PersistentCookieStore;
+import com.loopj.android.http.RequestParams;
 import com.sourcey.materiallogindemo.response.BitBucketGETReposResponse;
+import com.sourcey.materiallogindemo.rest.EngieAsyncHttpClient;
+import com.sourcey.materiallogindemo.rest.EngieOkHttpClient;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Scanner;
+import java.util.stream.Collectors;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import cz.msebera.android.httpclient.Header;
 import cz.msebera.android.httpclient.HttpStatus;
+import cz.msebera.android.httpclient.entity.ByteArrayEntity;
+import cz.msebera.android.httpclient.entity.StringEntity;
+import cz.msebera.android.httpclient.message.BasicHeader;
+import cz.msebera.android.httpclient.protocol.HTTP;
+import okhttp3.Cookie;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
@@ -120,91 +147,24 @@ public class LoginActivity extends AppCompatActivity {
         String loginId = _loginId.getText().toString();
         Log.i("Login", ">>>>>>>>>loginId = " + loginId + ">>>>>>>>>password =" + password);
         // ====================== TODO: Implement your own authentication logic here.
-
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.get("https://shahrik:Blog7402__@api.bitbucket.org/2.0/repositories/shahrik", new AsyncHttpResponseHandler() {
-
-            @Override
-            public void onStart() {
-                Log.i("AsyncHttpClient", "called before request is started");
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-                Log.i("AsyncHttpClient", "called when response HTTP status is 200 OK");
-                String decodedDataUsingUTF8=null;
-                if(statusCode == HttpStatus.SC_OK) {
-                    try {
-                        decodedDataUsingUTF8 = new String(response, "UTF-8");
-                        setResult(decodedDataUsingUTF8);
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                        Log.e("onSuccess", "decodedDataUsingUTF8 failure");
-                    }
-                }
-                setCallStatusCode(statusCode);
-                Log.i("onSuccess", "responseL["+decodedDataUsingUTF8+"]");
-
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
-                Log.i("AsyncHttpClient", "called when response HTTP status is \"4XX\" (eg. 401, 403, 404)");
-            }
-
-            @Override
-            public void onRetry(int retryNo) {
-                Log.i("AsyncHttpClient", "called when request is retried");
-            }
-        });
-
-        /*JSONObject jsonParams = new JSONObject();
-        StringEntity entity = null;
-        try {
-            jsonParams.put("username", "lace.sam@gmail.com");
-            jsonParams.put("password", "8Sapphire7");
-            jsonParams.put("keepMeLogged", true);
-            jsonParams.put("segment", "residential");
-            entity = new StringEntity(jsonParams.toString());
-            Log.i("Login", "Entity Payload:["+entity.toString()+"]");
-        } catch (JSONException | UnsupportedEncodingException e) {
-            e.printStackTrace();
+        //OKHttpClient that works with SSL
+        EngieOkHttpClient engieOkHttpClient = new EngieOkHttpClient();
+        engieOkHttpClient.login("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login");
+        setResult(engieOkHttpClient.getResult());
+        HttpUrl targetUrl = HttpUrl.parse("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login");
+        List<Cookie> cookieList = engieOkHttpClient.getCookieJar().loadForRequest(targetUrl);
+        Log.d("Login::Cookies", "===============>>Start::About to print the cookies returned");
+        for (Cookie c:cookieList) {
+            Log.i(c.name(), c.value());
+            Log.i("","\n");
         }
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.post(null,"https://www.engie-electrabel.be/nl/iam/v3/api/public/login", entity, "application/json", new AsyncHttpResponseHandler() {
-
-            @Override
-            public void onStart() {
-                Log.i("AsyncHttpClient", "called before request is started");
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-                Log.i("AsyncHttpClient", "called when response HTTP status is 200 OK");
-                String decodedDataUsingUTF8=null;
-                if(statusCode == HttpStatus.SC_OK) {
-                    try {
-                        decodedDataUsingUTF8 = new String(response, "UTF-8");
-                        setResult(decodedDataUsingUTF8);
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                        Log.e("onSuccess", "decodedDataUsingUTF8 failure");
-                    }
-                }
-                setCallStatusCode(statusCode);
-                Log.i("onSuccess", "responseL["+decodedDataUsingUTF8+"]");
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
-                Log.i("AsyncHttpClient", "called when response HTTP status is \"4XX\" (eg. 401, 403, 404)");
-            }
-
-            @Override
-            public void onRetry(int retryNo) {
-                Log.i("AsyncHttpClient", "called when request is retried");
-            }
-        });*/
+        Log.d("Login::Cookies", "===============>>End::About to print the cookies returned");
+        HttpUrl httpUrl = HttpUrl.parse("https://www.engie-electrabel.be/api/ebl/b2c/private/customer/accessPoints?filter=DEFAULT");
+        engieOkHttpClient.getCookieJar().saveFromResponse(httpUrl, cookieList);
+        //TODO::change language level to 1.8!!!!
+        //cookieList.forEach(c -> );
+        Log.i("OkHttp::cookies", cookieList == null ? "NULL Cookies List" : Arrays.deepToString(cookieList.toArray()));
+        engieOkHttpClient.fetchAccessPoints();
 
         // ====================== TODO: Implement your own authentication logic here.
         new android.os.Handler().postDelayed(
@@ -277,18 +237,8 @@ public class LoginActivity extends AppCompatActivity {
     public boolean validate() {
         boolean valid = true;
 
-/*
-        String email = _emailText.getText().toString();
-*/
         String loginId = _loginId.getText().toString();
         String password = _passwordText.getText().toString();
-
-       /* if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            _emailText.setError("enter a valid email address");
-            valid = false;
-        } else {
-            _emailText.setError(null);
-        }*/
 
         if (loginId.isEmpty()) {
             _loginId.setError("enter a LOGIN");

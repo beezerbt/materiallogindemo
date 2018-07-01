@@ -1,13 +1,11 @@
 package com.sourcey.materiallogindemo.rest;
 
-import android.arch.lifecycle.LiveData;
 import android.content.Context;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.PersistentCookieStore;
 import com.loopj.android.http.RequestParams;
-import com.sourcey.materiallogindemo.response.BitBucketGETReposResponse;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,23 +14,13 @@ import java.io.UnsupportedEncodingException;
 
 import cz.msebera.android.httpclient.entity.StringEntity;
 
-public class BitBucketRest {
-    private final String BASE_URL = "https://shahrik:Blog7402__@api.bitbucket.org/2.0/repositories/shahrik";
+public class EngieRest {
+    private final String BASE_URL = "https://msw-acc.engie-electrabel.be";
 
     private AsyncHttpClient client;
     private Context context;
-    public LiveData<BitBucketGETReposResponse> getLiveData() {
-        return liveData;
-    }
 
-    public void setLiveData(LiveData<BitBucketGETReposResponse> liveData) {
-        this.liveData = liveData;
-    }
-
-    LiveData<BitBucketGETReposResponse> liveData = null;
-
-
-    public BitBucketRest(Context context) {
+    public EngieRest(Context context) {
         this.context = context;
         PersistentCookieStore myCookieStore = new PersistentCookieStore(context);
         this.client = new AsyncHttpClient();
