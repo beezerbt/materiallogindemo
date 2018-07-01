@@ -13,43 +13,16 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.MySSLSocketFactory;
-import com.loopj.android.http.PersistentCookieStore;
-import com.loopj.android.http.RequestParams;
 import com.sourcey.materiallogindemo.response.BitBucketGETReposResponse;
-import com.sourcey.materiallogindemo.rest.EngieAsyncHttpClient;
 import com.sourcey.materiallogindemo.rest.EngieOkHttpClient;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Scanner;
-import java.util.stream.Collectors;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import cz.msebera.android.httpclient.Header;
 import cz.msebera.android.httpclient.HttpStatus;
-import cz.msebera.android.httpclient.entity.ByteArrayEntity;
-import cz.msebera.android.httpclient.entity.StringEntity;
-import cz.msebera.android.httpclient.message.BasicHeader;
-import cz.msebera.android.httpclient.protocol.HTTP;
 import okhttp3.Cookie;
 import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
@@ -61,7 +34,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     public void setResult(String result) {
-        Log.i("setResult", "resultIncoming:["+result+"]");
+        Log.i("setResult", "resultIncoming:[" + result + "]");
         this.result = result;
     }
 
@@ -95,6 +68,8 @@ public class LoginActivity extends AppCompatActivity {
     Button _loginButton;
     @BindView(R.id.link_signup)
     TextView _signupLink;
+
+    EngieOkHttpClient engieOkHttpClient = new EngieOkHttpClient();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -147,30 +122,31 @@ public class LoginActivity extends AppCompatActivity {
         String loginId = _loginId.getText().toString();
         Log.i("Login", ">>>>>>>>>loginId = " + loginId + ">>>>>>>>>password =" + password);
         // ====================== TODO: Implement your own authentication logic here.
-        //OKHttpClient that works with SSL
-        EngieOkHttpClient engieOkHttpClient = new EngieOkHttpClient();
-        engieOkHttpClient.login("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login");
+        HttpUrl loginUrl = HttpUrl.parse("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login");
+        engieOkHttpClient.getCookieJar().saveFromResponse(loginUrl, null);
+        engieOkHttpClient.login("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login", loginId, password);
         setResult(engieOkHttpClient.getResult());
-        HttpUrl targetUrl = HttpUrl.parse("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login");
-        List<Cookie> cookieList = engieOkHttpClient.getCookieJar().loadForRequest(targetUrl);
+        List<Cookie> cookieList = engieOkHttpClient.getCookieJar().loadForRequest(loginUrl);
         Log.d("Login::Cookies", "===============>>Start::About to print the cookies returned");
-        for (Cookie c:cookieList) {
+        for (Cookie c : cookieList) {
             Log.i(c.name(), c.value());
-            Log.i("","\n");
+            Log.i("", "\n");
         }
         Log.d("Login::Cookies", "===============>>End::About to print the cookies returned");
         HttpUrl httpUrl = HttpUrl.parse("https://www.engie-electrabel.be/api/ebl/b2c/private/customer/accessPoints?filter=DEFAULT");
         engieOkHttpClient.getCookieJar().saveFromResponse(httpUrl, cookieList);
         //TODO::change language level to 1.8!!!!
         //cookieList.forEach(c -> );
-        Log.i("OkHttp::cookies", cookieList == null ? "NULL Cookies List" : Arrays.deepToString(cookieList.toArray()));
         engieOkHttpClient.fetchAccessPoints();
-
+        setResult(engieOkHttpClient.getResult());
+        Log.i("LoginActivity", engieOkHttpClient.getCallStatusCode()+"");
+        Log.i("LoginActivity", engieOkHttpClient.getResult());
+        setCallStatusCode(engieOkHttpClient.getCallStatusCode());
         // ====================== TODO: Implement your own authentication logic here.
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
-                        if(getCallStatusCode() == HttpStatus.SC_OK) {
+                        if (getCallStatusCode() == HttpStatus.SC_OK) {
                             onLoginSuccess();
                         } else {
                             onLoginFailed();

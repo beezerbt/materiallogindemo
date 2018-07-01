@@ -38,11 +38,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp">
-            <EditText android:id="@+id/input_login"
+
+            <EditText
+                android:id="@+id/input_login"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:autoText="false"
+                android:hint="LOGIN"
                 android:inputType="text"
-                android:hint="LOGIN" />
+                android:text="lace.sam@gmail.com" />
         </android.support.design.widget.TextInputLayout>
 
         <!--  Password Label -->

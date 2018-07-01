@@ -2,6 +2,7 @@ package com.sourcey.materiallogindemo.rest;
 
 import android.util.Log;
 import android.webkit.CookieManager;
+import android.webkit.ValueCallback;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,22 +26,19 @@ public class EngieOkHttpClient {
     public EngieOkHttpClient() {
         this.cookieJar = new CookieJar() {
             private final HashMap<HttpUrl, List<Cookie>> cookieStore = new HashMap<>();
-
             @Override
             public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-/*
-                cookieStore.put(url, cookies);
-*/
                 CookieManager cookieManager = CookieManager.getInstance();
-
+                if(cookies == null) {
+                    cookieManager.removeAllCookie();
+                    return;
+                }
                 for (Cookie cookie : cookies) {
                     cookieManager.setCookie(url.toString(), cookie.toString());
                 }
             }
-
             @Override
             public List<Cookie> loadForRequest(HttpUrl url) {
-
                 CookieManager cookieManager = CookieManager.getInstance();
                 List<Cookie> cookies = new ArrayList<>();
                 if (cookieManager.getCookie(url.toString()) != null) {
@@ -50,8 +48,6 @@ public class EngieOkHttpClient {
                     }
                 }
                 return cookies;
-                /*List<Cookie> cookies = cookieStore.get(url);
-                return cookies != null ? cookies : new ArrayList<Cookie>();*/
             }
         };
         this.client = new OkHttpClient.Builder().cookieJar(this.cookieJar).build();
@@ -85,19 +81,34 @@ public class EngieOkHttpClient {
         this.client = client;
     }
 
-    OkHttpClient client;
+    private OkHttpClient client;
+
+    public int getCallStatusCode() {
+        return callStatusCode;
+    }
+
+    public void setCallStatusCode(int callStatusCode) {
+        this.callStatusCode = callStatusCode;
+    }
+
+    private int callStatusCode;
 
     /**
      * log in the B2C user
      *
      * @param URL
      */
-    public void login(String URL) {
+    public void login(String URL, String userName, String password) {
         if (URL.isEmpty()) {
             throw new IllegalArgumentException("URL cannot be empty");
+        }if (userName.isEmpty()) {
+            throw new IllegalArgumentException("userName cannot be empty");
+        }if (password.isEmpty()) {
+            throw new IllegalArgumentException("password cannot be empty");
         }
         MediaType mediaType = MediaType.parse("application/json");
-        RequestBody body = RequestBody.create(mediaType, "{\r\n\t\"username\": \"lace.sam@gmail.com\",\r\n\t\"password\": \"8Sapphire7\",\r\n\t\"keepMeLogged\": true,\r\n\t\"segment\": \"residential\"\r\n}");
+        //RequestBody body = RequestBody.create(mediaType, "{\r\n\t\"username\": \"lace.sam@gmail.com\",\r\n\t\"password\": \"8Sapphire7\",\r\n\t\"keepMeLogged\": true,\r\n\t\"segment\": \"residential\"\r\n}");
+        RequestBody body = RequestBody.create(mediaType, "{\r\n\t\"username\": \""+userName+"\",\r\n\t\"password\": \""+password+"\",\r\n\t\"keepMeLogged\": true,\r\n\t\"segment\": \"residential\"\r\n}");
         Request request = new Request.Builder()
                 //.url("https://www.engie-electrabel.be/api/ebl/cms/users/v1/login")
                 .url(URL)
@@ -106,14 +117,14 @@ public class EngieOkHttpClient {
                 .addHeader("Cache-Control", "no-cache")
                 .addHeader("Postman-Token", "8d243907-ea27-4a1b-bc31-4269710e3475")
                 .build();
-
-        Response response = null;
+        Response response = null; //TODO::no nulls?
         try {
             response = client.newCall(request).execute();
         } catch (IOException e) {
             Log.i("execute", "you failed dude!" + e);
 
         }
+        setCallStatusCode(response.code());
         setResult(response.message());
         Log.i("getResult()", getResult());
         Log.i("Response", response.toString());
@@ -137,8 +148,9 @@ public class EngieOkHttpClient {
                 .addHeader("Cache-Control", "no-cache")
                 .addHeader("Postman-Token", "8f2bc885-ee52-4798-a862-1198e2bf2cbc")
                 .build();
-        Response response = null;
-        client.newCall(request).enqueue(new Callback() {
+
+        //TODO::proper MVC needs to get this done properly...
+        /*client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 e.printStackTrace();
@@ -149,10 +161,28 @@ public class EngieOkHttpClient {
                 if (!response.isSuccessful()) {
                     throw new IOException("Unexpected code " + response);
                 } else {
-                    //setResult(response.body());
-                    Log.i("enqueue::responseBody", response.body() == null ? " response.body() was NULL!!!" : response.body().string());
+                    setResult(response.body() == null ? " response.body() was NULL!!!" : response.body().string());
+                    Log.i("enqueue::responseBody", getResult());
+                    setCallStatusCode(response.code());
+                    Log.i("enqueue::statusCodeSet", getCallStatusCode()+"");
                 }
             }
-        });
+        });*/
+        Response response = null; //TODO::no nulls?
+        try {
+            response = client.newCall(request).execute();
+        } catch (IOException e) {
+            Log.i("execute", "you failed dude!" + e);
+
+        }
+
+        try {
+            setResult(response.body() == null ? " response.body() was NULL!!!" : response.body().string());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Log.i("enqueue::responseBody", getResult());
+        setCallStatusCode(response.code());
+        Log.i("enqueue::statusCodeSet", getCallStatusCode()+"");
     }
 }
